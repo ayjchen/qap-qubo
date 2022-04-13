@@ -2,30 +2,49 @@ from pyqubo import Binary
 import numpy as np
 import neal
 
+# from parser import parse
+
 M = 200.0  # penalty coeff
 
-## input parsing
-n = input()
-n = int(n)
-f = []
-d = []
+# ## input parsing
+def parse(filename):
 
-## constructing input matrices
-for i in range(0, n):
-    f.append([k for k in list(map(int, input().split()))])
+    with open(filename) as file:
+        data = file.read().split('\n')
 
-for i in range(0, n):
-    d.append([k for k in list(map(int, input().split()))])
+    data = list(filter(lambda x : x.strip(), data))
+    # print(data)
 
-print(f, d)
+    data_iter = iter(data)
+
+    n = int(next(data_iter))
+    # print(n)
+    f, d = [], []
+
+    ## constructing input matrices
+    for i in range(0, n):
+        f.append([k for k in list(map(int, next(data_iter).split()))])
+
+    for i in range(0, n):
+        d.append([k for k in list(map(int, next(data_iter).split()))])
+
+    return n, f, d
+
+
+
+##### start of process #####
+
+n, f, d = parse("qapdata/had12.dat")
+print(n, f, d)
 
 ## constructing qubo matrix
 qubo_mat = np.einsum("ij,kl->ikjl", f, d)
+# print(qubo_mat)
 qubo_mat = qubo_mat.reshape(n**2, n**2)
-print(qubo_mat)
+# print(qubo_mat)
 
 x = [Binary("x%d"%i) for i in range(n**2)]
-print(x)
+# print(x)
 
 H = 0
 p_terms = 0
@@ -38,41 +57,69 @@ for i in range(n):
     p_terms += (x[0+i*n]+x[1+i*n]+x[2+i*n]-1)**2 + (x[0*n+i]+x[1*n+i]+x[2*n+i]-1)**2
 p_terms *= M
 # print(p_terms)
-# p_terms = M*((x[0]+x[1]+x[2]-1)**2 + (x[3]+x[4]+x[5]-1)**2 + (x[6]+x[7]+x[8]-1)**2 + (x[0]+x[3]+x[6]-1)**2 + (x[1]+x[4]+x[7]-1)**2 + (x[2]+x[5]+x[8]-1)**2)
 H += p_terms
 
-######## bruteforce
 
-# x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18 = Binary('x1'), Binary('x2'), Binary('x3'), Binary('x4'), Binary('x5'), Binary('x6'), Binary('x7'), Binary('x8'), Binary('x9'), Binary('x10'), Binary('x11'), Binary('x12'), Binary('x13'), Binary('x14'), Binary('x15'), Binary('x16'), Binary('x17'), Binary('x18')
-# p_terms = M*((x1+x2+x3-1)**2 + (x4+x5+x6-1)**2 + (x7+x8+x9-1)**2 + (x1+x4+x7-1)**2 + (x2+x5+x8-1)**2 + (x3+x6+x9-1)**2)
-# H = 80*x1*x5 + 150*x1*x6 + 32*x1*x8 + 60*x1*x9 + 80*x2*x4 + 130*x2*x6 + 60*x2*x7 + 52*x2*x9 + \
-#     150*x3*x4 + 130*x3*x5 + 60*x3*x7 + 52*x3*x8 + 48*x4*x8 + 90*x4*x9 + 78*x5*x9 + 78*x6*x8 + p_terms
-########
 
 model = H.compile()
 output = model.to_qubo()
 # print(output)
 tups_dict = output[0].keys()
 
-mat = [[0 for _ in range(9)] for _ in range(9)]
+mat = [[0 for _ in range(n**2)] for _ in range(n**2)]
 for x_str, y_str in tups_dict:
     x, y = int(x_str[1:]), int(y_str[1:])
     # print(x,y)
-    mat[x-1][y-1] = output[0][(x_str, y_str)]
+    mat[x][y] = output[0][(x_str, y_str)]
 
 
 # print(mat)
-for row in mat:
-    print(row)
+# for row in mat:
+#     print(row)
 
-print(output[1])
+print("Output 1:", output[1])
 
 
 
-## solving??
+## solving
 bqm = model.to_bqm()
 sa = neal.SimulatedAnnealingSampler()
 sampleset = sa.sample(bqm, num_reads=10)
 decoded_samples = model.decode_sampleset(sampleset)
 best_sample = min(decoded_samples, key=lambda x: x.energy)
-print(best_sample.sample)  # output seems to be wrong w/ bruteforce, correct w/ einsum (but wrong matrix output?)
+best = best_sample.sample
+print(best)
+
+## converting output to matrix
+best_keys = best.keys()
+# print(best_keys)
+x_mat = [[0 for _ in range(n)] for _ in range(n)]
+for x_str in best_keys:
+    x = int(x_str[1:])
+    val = best[x_str]
+    row = x // n
+    col = x % n
+    # print(x, val, row, col)
+    x_mat[row][col] = val
+
+# debug prints
+for i in range(n):
+    print(x_mat[i])
+# for i in range(n):
+#     for j in range(n):
+#         if (x_mat[i][j] == 1): 
+#             print(i, j)
+
+
+
+## getting objective function val
+x = x_mat
+obj = 0
+
+for i in range(n):
+    for j in range(n):
+        for k in range(n):
+            for l in range(n):
+                obj += f[i][j]*d[k][l]*x[i][k]*x[j][l]
+
+print(obj)

@@ -1,114 +1,84 @@
+from cmath import exp
 from pyqubo import Binary
 import numpy as np
 import neal
 
-# from parser import parse
+import input_parser as prs
 
-M = 200.0  # penalty coeff
-
-# ## input parsing
-def parse(filename):
-
-    with open(filename) as file:
-        data = file.read().split('\n')
-
-    data = list(filter(lambda x : x.strip(), data))
-    # print(data)
-
-    data_iter = iter(data)
-
-    n = int(next(data_iter))
-    # print(n)
-    f, d = [], []
-
-    ## constructing input matrices
-    for i in range(0, n):
-        f.append([k for k in list(map(int, next(data_iter).split()))])
-
-    for i in range(0, n):
-        d.append([k for k in list(map(int, next(data_iter).split()))])
-
-    return n, f, d
-
+M = 20000.0  # penalty coeff
+filename = "nug12"
 
 
 ##### start of process #####
+n, f, d = prs.parse_in("qapdata/" + filename + ".dat")
+# print(n, f, d)
 
-n, f, d = parse("qapdata/had12.dat")
-print(n, f, d)
-
-## constructing qubo matrix
+## constructing qubo matrix ############
 qubo_mat = np.einsum("ij,kl->ikjl", f, d)
-# print(qubo_mat)
 qubo_mat = qubo_mat.reshape(n**2, n**2)
-# print(qubo_mat)
 
 x = [Binary("x%d"%i) for i in range(n**2)]
-# print(x)
-
 H = 0
 p_terms = 0
 for i in range(n**2):
     for j in range(n**2):
         H += qubo_mat[i][j]*x[i]*x[j]
 
-# adding penalty terms
+## adding penalty terms ###########
 for i in range(n):
-    p_terms += (x[0+i*n]+x[1+i*n]+x[2+i*n]-1)**2 + (x[0*n+i]+x[1*n+i]+x[2*n+i]-1)**2
+    # p_terms += (x[0+i*n]+x[1+i*n]+x[2+i*n]-1)**2 + (x[0*n+i]+x[1*n+i]+x[2*n+i]-1)**2
+    p_terms += (sum([x[j+i*n] for j in range(n)]) - 1)**2 + (sum([x[j*n+i] for j in range(n)]) - 1)**2
 p_terms *= M
-# print(p_terms)
+# print("pterms:", p_terms)
 H += p_terms
 
 
-
+## compiling qubo model ###########
 model = H.compile()
 output = model.to_qubo()
-# print(output)
 tups_dict = output[0].keys()
+print("Penalty additive constant:", output[1])
 
-mat = [[0 for _ in range(n**2)] for _ in range(n**2)]
-for x_str, y_str in tups_dict:
-    x, y = int(x_str[1:]), int(y_str[1:])
-    # print(x,y)
-    mat[x][y] = output[0][(x_str, y_str)]
-
+### qubo matrix ###
+# mat = [[0 for _ in range(n**2)] for _ in range(n**2)]
+# for x_str, y_str in tups_dict:
+#     x, y = int(x_str[1:]), int(y_str[1:])
+#     # print(x,y)
+#     mat[x][y] = output[0][(x_str, y_str)]
 
 # print(mat)
 # for row in mat:
 #     print(row)
-
-print("Output 1:", output[1])
-
+### END qubo matrix ###
 
 
-## solving
+
+
+
+## solving ############
 bqm = model.to_bqm()
 sa = neal.SimulatedAnnealingSampler()
 sampleset = sa.sample(bqm, num_reads=10)
 decoded_samples = model.decode_sampleset(sampleset)
 best_sample = min(decoded_samples, key=lambda x: x.energy)
 best = best_sample.sample
-print(best)
 
 ## converting output to matrix
 best_keys = best.keys()
-# print(best_keys)
 x_mat = [[0 for _ in range(n)] for _ in range(n)]
 for x_str in best_keys:
     x = int(x_str[1:])
-    val = best[x_str]
+    val = int(best[x_str])
     row = x // n
     col = x % n
-    # print(x, val, row, col)
     x_mat[row][col] = val
 
 # debug prints
+pos = []
 for i in range(n):
     print(x_mat[i])
-# for i in range(n):
-#     for j in range(n):
-#         if (x_mat[i][j] == 1): 
-#             print(i, j)
+    pos.append(x_mat[i].index(1)+1)
+
 
 
 
@@ -122,4 +92,8 @@ for i in range(n):
             for l in range(n):
                 obj += f[i][j]*d[k][l]*x[i][k]*x[j][l]
 
-print(obj)
+expected_obj, expected_pos = prs.parse_out("qapsoln/" + filename + ".sln")
+
+print("Expected positions:", expected_pos)
+print("Actual positions:", pos)
+print("Expected opt obj:", expected_obj, "\nActual output obj:", obj)

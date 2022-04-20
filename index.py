@@ -26,10 +26,8 @@ for i in range(n**2):
 
 ## adding penalty terms ###########
 for i in range(n):
-    # p_terms += (x[0+i*n]+x[1+i*n]+x[2+i*n]-1)**2 + (x[0*n+i]+x[1*n+i]+x[2*n+i]-1)**2
     p_terms += (sum([x[j+i*n] for j in range(n)]) - 1)**2 + (sum([x[j*n+i] for j in range(n)]) - 1)**2
 p_terms *= M
-# print("pterms:", p_terms)
 H += p_terms
 
 
@@ -58,7 +56,7 @@ print("Penalty additive constant:", output[1])
 ## solving ############
 bqm = model.to_bqm()
 sa = neal.SimulatedAnnealingSampler()
-sampleset = sa.sample(bqm, num_reads=10)
+sampleset = sa.sample(bqm, num_reads=300, num_sweeps=1000)
 decoded_samples = model.decode_sampleset(sampleset)
 best_sample = min(decoded_samples, key=lambda x: x.energy)
 best = best_sample.sample

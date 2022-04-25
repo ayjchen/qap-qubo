@@ -2,96 +2,125 @@ from cmath import exp
 from pyqubo import Binary
 import numpy as np
 import neal
+import sys
 
 import input_parser as prs
 
-M = 20000.0  # penalty coeff
-filename = "nug12"
-
-
-##### start of process #####
-n, f, d = prs.parse_in("qapdata/" + filename + ".dat")
-# print(n, f, d)
-
-## constructing qubo matrix ############
-qubo_mat = np.einsum("ij,kl->ikjl", f, d)
-qubo_mat = qubo_mat.reshape(n**2, n**2)
-
-x = [Binary("x%d"%i) for i in range(n**2)]
-H = 0
-p_terms = 0
-for i in range(n**2):
-    for j in range(n**2):
-        H += qubo_mat[i][j]*x[i]*x[j]
-
-## adding penalty terms ###########
-for i in range(n):
-    p_terms += (sum([x[j+i*n] for j in range(n)]) - 1)**2 + (sum([x[j*n+i] for j in range(n)]) - 1)**2
-p_terms *= M
-H += p_terms
-
-
-## compiling qubo model ###########
-model = H.compile()
-output = model.to_qubo()
-tups_dict = output[0].keys()
-print("Penalty additive constant:", output[1])
-
-### qubo matrix ###
-# mat = [[0 for _ in range(n**2)] for _ in range(n**2)]
-# for x_str, y_str in tups_dict:
-#     x, y = int(x_str[1:]), int(y_str[1:])
-#     # print(x,y)
-#     mat[x][y] = output[0][(x_str, y_str)]
-
-# print(mat)
-# for row in mat:
-#     print(row)
-### END qubo matrix ###
+def main_func(reads, sweeps):
+    filename = "nug12"
 
 
 
+    M = 20000000.0  # penalty coeff
+
+    ##### start of process #####
+    n, f, d = prs.parse_in("qapdata/" + filename + ".dat")
+    # print(n, f, d)
+
+    ## constructing qubo matrix ############
+    qubo_mat = np.einsum("ij,kl->ikjl", f, d)
+    qubo_mat = qubo_mat.reshape(n**2, n**2)
+
+    x = [Binary("x%d"%i) for i in range(n**2)]
+    H = 0
+    p_terms = 0
+    for i in range(n**2):
+        for j in range(n**2):
+            H += qubo_mat[i][j]*x[i]*x[j]
+
+    ## adding penalty terms ###########
+    for i in range(n):
+        p_terms += (sum([x[j+i*n] for j in range(n)]) - 1)**2 + (sum([x[j*n+i] for j in range(n)]) - 1)**2
+    p_terms *= M
+    H += p_terms
 
 
-## solving ############
-bqm = model.to_bqm()
-sa = neal.SimulatedAnnealingSampler()
-sampleset = sa.sample(bqm, num_reads=300, num_sweeps=1000)
-decoded_samples = model.decode_sampleset(sampleset)
-best_sample = min(decoded_samples, key=lambda x: x.energy)
-best = best_sample.sample
+    ## compiling qubo model ###########
+    model = H.compile()
+    output = model.to_qubo()
+    tups_dict = output[0].keys()
+    # print("Penalty additive constant:", output[1])
 
-## converting output to matrix
-best_keys = best.keys()
-x_mat = [[0 for _ in range(n)] for _ in range(n)]
-for x_str in best_keys:
-    x = int(x_str[1:])
-    val = int(best[x_str])
-    row = x // n
-    col = x % n
-    x_mat[row][col] = val
+    ### qubo matrix ###
+    # mat = [[0 for _ in range(n**2)] for _ in range(n**2)]
+    # for x_str, y_str in tups_dict:
+    #     x, y = int(x_str[1:]), int(y_str[1:])
+    #     # print(x,y)
+    #     mat[x][y] = output[0][(x_str, y_str)]
 
-# debug prints
-pos = []
-for i in range(n):
-    print(x_mat[i])
-    pos.append(x_mat[i].index(1)+1)
+    # print(mat)
+    # for row in mat:
+    #     print(row)
+    ### END qubo matrix ###
 
 
 
 
-## getting objective function val
-x = x_mat
-obj = 0
 
-for i in range(n):
-    for j in range(n):
-        for k in range(n):
-            for l in range(n):
-                obj += f[i][j]*d[k][l]*x[i][k]*x[j][l]
+    ## solving ############
+    bqm = model.to_bqm()
+    sa = neal.SimulatedAnnealingSampler()
+    sampleset = sa.sample(bqm, num_reads=reads, num_sweeps=sweeps)
+    decoded_samples = model.decode_sampleset(sampleset)
+    best_sample = min(decoded_samples, key=lambda x: x.energy)
+    best = best_sample.sample
 
-expected_obj, expected_pos = prs.parse_out("qapsoln/" + filename + ".sln")
+    ## converting output to matrix
+    best_keys = best.keys()
+    x_mat = [[0 for _ in range(n)] for _ in range(n)]
+    for x_str in best_keys:
+        x = int(x_str[1:])
+        val = int(best[x_str])
+        row = x // n
+        col = x % n
+        x_mat[row][col] = val
 
-print("Expected positions:", expected_pos)
-print("Actual positions:", pos)
-print("Expected opt obj:", expected_obj, "\nActual output obj:", obj)
+    # # debug print assignment matrix
+    # pos = []
+    # for i in range(n):
+    #     print(x_mat[i])
+    #     pos.append(x_mat[i].index(1)+1)
+
+
+
+
+    ## getting objective function val
+    x = x_mat
+    obj = 0
+
+    for i in range(n):
+        for j in range(n):
+            for k in range(n):
+                for l in range(n):
+                    obj += f[i][j]*d[k][l]*x[i][k]*x[j][l]
+
+    expected_obj, expected_pos = prs.parse_out("qapsoln/" + filename + ".sln")
+
+    # print("Expected positions:", expected_pos)
+    # print("Actual positions:", pos)
+    # print("Expected opt obj:", expected_obj, "\nActual output obj:", obj)
+    return obj
+
+
+def run_func(reads=10, sweeps=1000):
+    arr = []
+    for i in range(5):
+        arr.append(main_func(reads, sweeps))
+    return arr
+
+def var_reads(start, end, step):
+    for num_reads in range(start, end, step):
+        print(num_reads, '=', run_func(reads=num_reads))
+
+def var_sweeps(start, end, step):
+    for num_sweeps in range(start, end, step):
+        print(run_func(sweeps=num_sweeps))
+
+
+def main(argv):
+    start, end, step = argv
+    start, end, step = int(start), int(end), int(step)
+    var_reads(start, end, step)
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

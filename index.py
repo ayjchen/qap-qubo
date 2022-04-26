@@ -104,7 +104,7 @@ def main_func(reads, sweeps):
 
 def run_func(reads=10, sweeps=1000):
     arr = []
-    for i in range(5):
+    for i in range(100):
         arr.append(main_func(reads, sweeps))
     return arr
 

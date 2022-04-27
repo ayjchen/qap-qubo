@@ -120,7 +120,7 @@ def var_sweeps(start, end, step):
 def main(argv):
     start, end, step = argv
     start, end, step = int(start), int(end), int(step)
-    var_reads(start, end, step)
+    var_sweeps(start, end, step)
 
 if __name__ == '__main__':
     main(sys.argv[1:])

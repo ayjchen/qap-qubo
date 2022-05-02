@@ -3,6 +3,8 @@ from pyqubo import Binary
 import numpy as np
 import neal
 import sys
+from joblib import Parallel, delayed
+import logging
 
 import input_parser as prs
 
@@ -103,24 +105,33 @@ def main_func(reads, sweeps):
 
 
 def run_func(reads=10, sweeps=1000):
-    arr = []
-    for i in range(100):
-        arr.append(main_func(reads, sweeps))
-    return arr
+    # arr = []
+    # for i in range(100):
+    #     arr.append(main_func(reads, sweeps))
+    # return arr
+    return Parallel(n_jobs=16)(delayed(main_func)(reads, sweeps) for i in range(500))
 
 def var_reads(start, end, step):
     for num_reads in range(start, end, step):
+        log_msg = "var_reads=" + str(num_reads)
+        logging.info(log_msg)
         print(num_reads, '=', run_func(reads=num_reads))
 
 def var_sweeps(start, end, step):
     for num_sweeps in range(start, end, step):
-        print(run_func(sweeps=num_sweeps))
+        log_msg = "var_sweeps=" + str(num_sweeps)
+        logging.info(log_msg)
+        print(num_sweeps, '=', run_func(sweeps=num_sweeps))
 
 
 def main(argv):
     start, end, step = argv
     start, end, step = int(start), int(end), int(step)
-    var_sweeps(start, end, step)
+    output_filename = "var_reads_" + str(start) + ".log"
+    logging.basicConfig(filename=output_filename, format='%(asctime)s - %(message)s', datefmt='%y-%m-%d %H:%M:%S', level=logging.INFO)
+
+    var_reads(start, end, step)
+    logging.info("Process completed")
 
 if __name__ == '__main__':
     main(sys.argv[1:])

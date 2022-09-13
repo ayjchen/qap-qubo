@@ -62,7 +62,7 @@ def main_func(reads, sweeps):
     ## solving ############
     bqm = model.to_bqm()
     sa = neal.SimulatedAnnealingSampler()
-    sampleset = sa.sample(bqm, num_reads=reads, num_sweeps=sweeps)
+    sampleset = sa.sample(bqm, num_reads=reads, num_sweeps=sweeps, beta_range=(10**(-3), 1))
     decoded_samples = model.decode_sampleset(sampleset)
     best_sample = min(decoded_samples, key=lambda x: x.energy)
     best = best_sample.sample
@@ -127,7 +127,7 @@ def var_sweeps(start, end, step):
 def main(argv):
     start, end, step = argv
     start, end, step = int(start), int(end), int(step)
-    output_filename = "var_reads_" + str(start) + ".log"
+    output_filename = "var_beta_rng_" + str(start) + ".log"
     logging.basicConfig(filename=output_filename, format='%(asctime)s - %(message)s', datefmt='%y-%m-%d %H:%M:%S', level=logging.INFO)
 
     var_reads(start, end, step)

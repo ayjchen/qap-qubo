@@ -11,12 +11,24 @@ from numba import jit
 class IsingRBM(RBM):
     '''
     RBM for evaluating Ising Model (fully connected {-1, 1} activation}  problems
+    Parameters:
+    fname - Filename (see sample N010-id00.txt) which contains file in "ising" format (assumes {-1, 1} activations)
+    W - if not using fname parameter, can directly give weight matrix. Format can be numpy, pytorch, or regular python
+    b - if not using fname parameter, biases for weight matrix
+    temperature - inverse temperatre (beta) parameter that scales the weight matrix for slower or faster mixing time
+    coupling - strength of connection between copies of the same node. 
+    ising - Whether to have the input remain in {-1, 1} format (ising=True) or move the input to {0, 1} format (ising=False)
+        If no modifications to input weights needed, set ising=True
     '''
     def __init__(self, fname=None, W=None, b=None, temperature=1, coupling=10, ising=True):
         '''
         fname is file to MaxCUT data from
         coupling is the graph embedding coupling parameter
         '''
+        self.temperature = temperature
+        self.coupling = coupling
+        #Ising formulation ({-1, 1} activation) vs Boltzmann formulation ({0, 1} activation)
+        self.ising = ising
         if fname:
             f = open(fname, 'r')
             #First Line is parameters, number of vertices and number of edges
@@ -29,10 +41,7 @@ class IsingRBM(RBM):
             self.weights = torch.zeros_like(self.weights)
             self.visible_bias = torch.zeros_like(self.visible_bias)
             self.hidden_bias = torch.zeros_like(self.hidden_bias)
-            self.temperature = temperature
-            self.coupling = coupling
-            #Ising formulation ({-1, 1} activation) vs Boltzmann formulation ({0, 1} activation)
-            self.ising = ising
+
             #Adjacency matrix
             self.adj = torch.zeros(params[0], params[0])
 
@@ -51,8 +60,6 @@ class IsingRBM(RBM):
             self.adj_b = torch.zeros_like(self.visible_bias)
             f.close()
         else:
-            if not W:
-                raise ValueError("Need W and b if no fname")
             self.num_vertices = len(b)
             super().__init__(self.num_vertices, self.num_vertices, 1)
             for i, line in enumerate(W):
@@ -83,14 +90,20 @@ class IsingRBM(RBM):
             self.weights = temperature * 4*self.weights
 
         
-
-
-    def ising_energy(self, state):
+    """
+    Calculates the energy of a given state. Assumes input adjacency matrix is in ising format. 
+    if ising=True, modifies the state to use ising weight matrix assumptions ({-1, 1} activations)
+    if ising=False, no modification to state ({0, 1} activations)
+    """
+    def ising_energy(self, state, ising=True):
         adj = self.adj.cpu().numpy()
         adj_b = self.adj_b.cpu().numpy()
         if type(state) == torch.Tensor:
             state = state.cpu().numpy()
-        state2 = 2 * state - 1
+        if ising:
+            state2 = 2 * state - 1
+        else:
+            state2 = state
         return np.matmul(np.matmul(state2, adj), state2) + np.dot(state2, adj_b)
 
 

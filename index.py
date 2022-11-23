@@ -17,6 +17,7 @@ def main_func(reads, sweeps):
 
     ##### start of process #####
     n, f, d = prs.parse_in("qapdata/" + filename + ".dat")
+    n, f, d = prs.parse_in("small_examples/4x4.in")
     # print(n, f, d)
 
     ## constructing qubo matrix ############
@@ -44,12 +45,13 @@ def main_func(reads, sweeps):
     # print("Penalty additive constant:", output[1])
 
     ### qubo matrix ###
-    # mat = [[0 for _ in range(n**2)] for _ in range(n**2)]
-    # for x_str, y_str in tups_dict:
-    #     x, y = int(x_str[1:]), int(y_str[1:])
-    #     # print(x,y)
-    #     mat[x][y] = output[0][(x_str, y_str)]
+    mat = [[0 for _ in range(n**2)] for _ in range(n**2)]
+    for x_str, y_str in tups_dict:
+        x, y = int(x_str[1:]), int(y_str[1:])
+        # print(x,y)
+        mat[x][y] = output[0][(x_str, y_str)]
 
+    # print(output)
     # print(mat)
     # for row in mat:
     #     print(row)
@@ -61,7 +63,7 @@ def main_func(reads, sweeps):
 
     ## solving ############
     bqm = model.to_bqm()
-    print(type(model))
+    # print(type(model))
     # neal
     sa = neal.SimulatedAnnealingSampler()
     sampleset = sa.sample(bqm, num_reads=reads, num_sweeps=sweeps, beta_range=(10**(-2), 10**(1)))
@@ -81,8 +83,8 @@ def main_func(reads, sweeps):
 
     # # debug print assignment matrix
     # pos = []
-    # for i in range(n):
-    #     print(x_mat[i])
+    for i in range(n):
+        print(x_mat[i])
     #     pos.append(x_mat[i].index(1)+1)
 
 

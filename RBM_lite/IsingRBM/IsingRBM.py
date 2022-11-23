@@ -63,14 +63,17 @@ class IsingRBM(RBM):
             self.num_vertices = len(b)
             super().__init__(self.num_vertices, self.num_vertices, 1)
             for i, line in enumerate(W):
+                # print("i=", i, "line=", line)
                 for j, val in enumerate(line):
                     self.weights[i, j] = float(val)
                     self.weights[j, i] = float(val)
+                    # print("j=", j, "val=", val)
             for i, val in enumerate(b):
                 self.visible_bias[i] = float(val)
                 self.hidden_bias[i] = float(val)
             self.adj = torch.Tensor(W)
             self.adj_b = torch.Tensor(b)
+            # print(self.weights)
             
         #Adding coupling term
         for i in range(self.num_visible):
@@ -78,6 +81,9 @@ class IsingRBM(RBM):
 
         #This inverts the weight matrix (so that cuts are incentivized)
         self.weights = -1 * self.weights
+        self.visible_bias = -1 * self.visible_bias
+        self.hidden_bias = -1 * self.hidden_bias
+        # print("self.weights=", self.weights)
 
         if self.ising:
             self.visible_bias = temperature * self.visible_bias

@@ -15,7 +15,8 @@ def testProb_model(model, samps, trials):
         v = list(sampDict.items())
         vals = [x[1] for x in v]
         MLE = utils.fromBuffer(v[np.argmax(vals)][0]).numpy()
-        outCuts.append(model.ising_energy(MLE))
+        # outCuts.append(model.ising_energy(MLE))
+        outCuts.append(MLE)
     return outCuts
 
 def testProb(W=None, b=None, fname=None, samps=1000, trials=10, temperature=0.5, coupling=10, device='cpu', ising=False):

@@ -32,9 +32,9 @@ class RBM():
 
         self.sigmoid = torch.nn.Sigmoid()
 
-        self.weights = torch.randn(num_visible, num_hidden, device=torch.device(self.device)) * 0.1
-        self.visible_bias = torch.ones(num_visible, device=torch.device(self.device)) * 0.5
-        self.hidden_bias = torch.zeros(num_hidden, device=torch.device(self.device))
+        self.weights = torch.randn(num_visible, num_hidden, device=torch.device(self.device), dtype=torch.double) * 0.1
+        self.visible_bias = torch.ones(num_visible, device=torch.device(self.device), dtype=torch.double) * 0.5
+        self.hidden_bias = torch.zeros(num_hidden, device=torch.device(self.device), dtype=torch.double)
 
 
         if use_momentum:
@@ -119,19 +119,19 @@ class RBM():
         # Positive phase
         # <s_i s_j>_0
         positive_hidden_probabilities = self.sample_hidden(input_data)
-        positive_hidden_activations = (positive_hidden_probabilities >= self._random_probabilities(self.num_hidden)).float()
+        positive_hidden_activations = (positive_hidden_probabilities >= self._random_probabilities(self.num_hidden)).double()
         positive_associations = torch.matmul(input_data.t(), positive_hidden_activations)
 
         # Negative phase
         hidden_activations = positive_hidden_activations
         if pcd and torch.is_tensor(self.pcd_visible):
-            hidden_activations = (self.sample_hidden(self.pcd_visible) >= self._random_probabilities(self.num_hidden)).float()
+            hidden_activations = (self.sample_hidden(self.pcd_visible) >= self._random_probabilities(self.num_hidden)).double()
 
         #Alternating gibbs sampling
         for step in range(self.k):
             visible_probabilities = self.sample_visible(hidden_activations)
             hidden_probabilities = self.sample_hidden(visible_probabilities)
-            hidden_activations = (hidden_probabilities >= self._random_probabilities(self.num_hidden)).float()
+            hidden_activations = (hidden_probabilities >= self._random_probabilities(self.num_hidden)).double()
 
         negative_visible_probabilities = visible_probabilities
         negative_hidden_probabilities = hidden_probabilities
@@ -248,10 +248,10 @@ class RBM():
 
 
         hidden_probabilities = self.sample_hidden(input_data)
-        hidden_activations = (hidden_probabilities >= self._random_probabilities(self.num_hidden)).float()
+        hidden_activations = (hidden_probabilities >= self._random_probabilities(self.num_hidden)).double()
 
         for step in range(k):
-            visible_activations = (self.sample_visible(hidden_activations) >= self._random_probabilities(self.num_visible)).float()
+            visible_activations = (self.sample_visible(hidden_activations) >= self._random_probabilities(self.num_visible)).double()
 
             #Clamps 1 values
             visible_activations = torch.max(visible_activations, clamp)
@@ -259,7 +259,7 @@ class RBM():
             #Clamps 0 values
             visible_activations = torch.min(visible_activations, torch.abs(clamp))
 
-            hidden_activations = (self.sample_hidden(visible_activations) >= self._random_probabilities(self.num_hidden)).float()
+            hidden_activations = (self.sample_hidden(visible_activations) >= self._random_probabilities(self.num_hidden)).double()
 
         if use_outbits:
             return visible_activations[self.outbits]
@@ -315,7 +315,7 @@ class RBM():
 
         #Calculates powers of 2 from most signifcant bit to least, used for key creation.
         #For some reason, need to call .cuda() instead of setting device here, not sure why
-        pows = torch.from_numpy(np.power(2, np.flip(np.arange(len(bitmap)), axis=0))).float()
+        pows = torch.from_numpy(np.power(2, np.flip(np.arange(len(bitmap)), axis=0))).double()
         if not self.device == 'cpu':
             pows = pows.to(torch.device(self.device))
 
@@ -366,27 +366,29 @@ class RBM():
             else:
                 clamp[self.zeros] = 0
 
+        clamp = clamp.type(self.weights.type())
          #Input data is randomized if not present
         if input_visible is None:
-            input_visible = torch.rand(num_samps, self.num_visible, device=torch.device(self.device)).round().float()
+            input_visible = torch.rand(num_samps, self.num_visible, device=torch.device(self.device)).round().double()
 
+        input_visible = input_visible.type(self.weights.type())
          #Input data should be clamped regardless of its origin
         input_visible = torch.max(input_visible, clamp)
         input_visible = torch.min(input_visible, torch.abs(clamp))
 
         if flip:
             if input_hidden is None:
-                input_hidden = torch.rand(num_samps, self.num_hidden, device=torch.device(self.device)).round().float()
+                input_hidden = torch.rand(num_samps, self.num_hidden, device=torch.device(self.device)).round().double()
             previous_visible = input_visible
             previous_hidden = input_hidden
 
         visible_activations = input_visible
 
         for step in range(k):
-            hidden_activations = (self.sample_hidden(visible_activations, temperature=temperature) >= torch.rand(num_samps, self.num_hidden, device=torch.device(self.device))).float()
+            hidden_activations = (self.sample_hidden(visible_activations, temperature=temperature) >= torch.rand(num_samps, self.num_hidden, device=torch.device(self.device))).double()
 
 
-            visible_activations = (self.sample_visible(hidden_activations, temperature=temperature) >= torch.rand(num_samps, self.num_visible, device=torch.device(self.device))).float()
+            visible_activations = (self.sample_visible(hidden_activations, temperature=temperature) >= torch.rand(num_samps, self.num_visible, device=torch.device(self.device))).double()
 
              #Clamps 1 values
             visible_activations = torch.max(visible_activations, clamp)
@@ -422,7 +424,7 @@ class RBM():
          #of visible units.
         if input_data is None:
             sample = torch.randint(0, 2, (num_chains, self.num_visible),
-                                dtype=torch.float32, device=torch.device(self.device))
+                                dtype=torch.double, device=torch.device(self.device))
         else:
             sample = input_data
         # if keep_samps:
@@ -435,7 +437,7 @@ class RBM():
             #Do up to the stride length samples before collecting
             maxind = stride if ind + stride < num_samples else num_samples - ind
             # tempSamps = torch.empty((maxind, num_chains,
-            #                     bitmap.size(0)), dtype=torch.float32, device=torch.device(self.device))
+            #                     bitmap.size(0)), dtype=torch.double, device=torch.device(self.device))
 
 
 
@@ -461,13 +463,13 @@ class RBM():
     def __tensHelper(self, maxind, num_chains, out, bitmap, clamp=None, input_data=None, k=1, use_zeros=True,
                                 keep_samps=False, temperature=1):
         tempSamps = torch.empty((maxind, num_chains,
-                            bitmap.size(0)), dtype=torch.float32, device=torch.device(self.device))
+                            bitmap.size(0)), dtype=torch.double, device=torch.device(self.device))
 
         if clamp is None:
-            clamp = torch.zeros(num_chains, self.num_visible, dtype=torch.float32, device=torch.device(self.device)) - 1
+            clamp = torch.zeros(num_chains, self.num_visible, dtype=torch.double, device=torch.device(self.device)) - 1
         if input_data is None:
             sample = torch.randint(0, 2, (num_chains, self.num_visible),
-                                    dtype=torch.float32, device=torch.device(self.device))
+                                    dtype=torch.double, device=torch.device(self.device))
         else:
             sample = input_data
         for i in range(maxind):
@@ -734,8 +736,8 @@ class RBM():
     """
     Calculates the free energy of this state given a set of visible and hidden states
     Does this in a matrix wide way, so multiple visible and hidden states can be passed in
-    visible_states - states to set the visible units into, should be torch floatTensor
-    hidden-states - states to set the hidden units to, should be a torch floatTensor
+    visible_states - states to set the visible units into, should be torch.doubleTensor
+    hidden-states - states to set the hidden units to, should be a torch.doubleTensor
     Note: visible_states and hidden_states are expected to have dimensions num_visible x 2^num_visible and num_hidden x 2^num_hidden
     """
     def free_energy(self, visible_states, hidden_states):
@@ -752,13 +754,13 @@ class RBM():
     """
     Calculates the probability of a visible state occuring. Does this by marginalizing over all hidden states.
     If partition==True, explicitly calculates the partition, otherwise just calculates the Free Energy
-    v - states to set the visible units to, should be torch floatTensor
+    v - states to set the visible units to, should be torch.doubleTensor
     """
     def prob(self, v, partition=False, log=True):
         if partition:
             part = self.partition(log=True)
         else:
-            part = torch.tensor([0.], device=self.device, dtype=torch.float)
+            part = torch.tensor([0.], device=self.device, dtype=torch.double)
         if len(v.size()) == 1:
             v = torch.unsqueeze(v, 0)
         w_v = torch.matmul(v, self.weights)
@@ -784,7 +786,7 @@ class RBM():
     def partition(self, stride=16, log=False):
         part = self.prob(torch.zeros(self.num_visible), log=True)
         for ind in np.arange(0, self.num_visible, stride):
-            states = utils.intToTens(torch.arange(2**int(ind), 2**(min(int(ind+stride), self.num_visible))).float())
+            states = utils.intToTens(torch.arange(2**int(ind), 2**(min(int(ind+stride), self.num_visible))).double())
             if self.num_visible > states.size(1):
                 states = torch.cat((torch.zeros(states.size(0), self.num_visible - states.size(1)), states), 1)
             vis = self.prob(states, partition=False, log = True)
@@ -800,13 +802,15 @@ class RBM():
     Returns a vector of all visible state probabilities
     Generally very slow for a large number of units, do not use for num_units > 20
     """
-    def probs(self, stride=16, temperature = 1):
+    def probs(self, stride=16, temperature = 1, log=False):
         vis = self.prob(torch.zeros(self.num_visible, device = self.device), log=True)
         for ind in np.arange(0, self.num_visible, stride):
-            states = utils.intToTens(torch.arange(2**int(ind), 2**(min(int(ind+stride), self.num_visible)), device = self.device).float())
+            states = utils.intToTens(torch.arange(2**int(ind), 2**(min(int(ind+stride), self.num_visible)), device = self.device).double())
             if self.num_visible > states.size(1):
                 states = torch.cat((torch.zeros(states.size(0), self.num_visible - states.size(1), device = self.device), states), 1)
             vis = torch.cat((vis, self.prob(states, partition=False, log = True)), 0)
 
         vis = vis/temperature - torch.logsumexp(vis/temperature, 0)
+        if log:
+            return vis
         return torch.exp(vis)

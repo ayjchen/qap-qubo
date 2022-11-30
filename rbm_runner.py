@@ -107,9 +107,14 @@ def run_func(penalty, coup, temp):
     print("penalty=", penalty, "coup=", coup, "temp=", temp, "num_correct=", num_correct)
 
 for i in range(100, 1000, 100):
-    run_func(penalty=i, coup=(i*2), temp=0.1)
+    run_func(penalty=i, coup=(2*i/5), temp=0.1)
 for i in range(1000, 10000, 1000):
-    run_func(penalty=i, coup=(i*2), temp=0.001)
+    run_func(penalty=i, coup=(2*i/5), temp=0.001)
+
+# for i in range(1, 10):
+#     run_func(penalty=1000, coup=2000, temp=i*0.0001)
+# for i in range(1, 10):
+#     run_func(penalty=1000, coup=2000, temp=i*0.001)
 
 # run_func(penalty=1000, coup=2000, temp=0.001)
 

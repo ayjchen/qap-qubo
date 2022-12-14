@@ -9,7 +9,7 @@ from IsingRBM.IsingRBM import IsingRBM
 
 
 def testProb_model(model, samps, trials):
-    outStats = model.tensgenerate_statistics(samps, trials)[0]
+    outStats, rawSamples = model.tensgenerate_statistics(samps, trials, keep_samps=True)
     outCuts = []
     for i, sampDict in enumerate(outStats):
         v = list(sampDict.items())
@@ -17,16 +17,19 @@ def testProb_model(model, samps, trials):
         MLE = utils.fromBuffer(v[np.argmax(vals)][0]).numpy()
         # outCuts.append(model.ising_energy(MLE))
         outCuts.append(MLE)
-    return outCuts
+    return outCuts, rawSamples
 
-def testProb(W=None, b=None, fname=None, samps=1000, trials=10, temperature=0.5, coupling=10, device='cpu', ising=False):
+def testProb(W=None, b=None, fname=None, samps=1000, trials=10, temperature=0.5, coupling=10, device='cpu', ising=False, rawSamples=False):
     if fname:
         model = IsingRBM(fname=fname, temperature=temperature, coupling=coupling, ising=ising)
     else:
         model = IsingRBM(W=W, b=b, temperature=temperature, coupling=coupling, ising=ising)
     #If device is cuda, move to cuda
     model.to(device)
-    energies = np.array(testProb_model(model, samps, trials))
+    if rawSamples:
+        energies, samples = testProb_model(model, samps, trials)
+        return np.array(energies), samples.numpy()
+    energies = np.array(testProb_model(model, samps, trials)[0])
     return energies
 
 if __name__ == "__main__":

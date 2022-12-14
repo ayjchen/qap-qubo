@@ -74,9 +74,10 @@ def run_func(penalty, coup, temp):
     # print("bias=", bias)
     ### END qubo matrix ###
 
-    testProb_output = ising.testProb(W=mat, b=bias, samps=50000, trials=100, temperature=temp, coupling=coup, ising=True)    
+    testProb_output, raw_samples = ising.testProb(W=mat, b=bias, samps=5000, trials=100, temperature=temp, coupling=coup, ising=True, rawSamples=True)    
     testProb_output = list(map(lambda x : tuple(x), testProb_output))
-    # most_probable_output = Counter(testProb_output).most_common(1)[0][0]
+    print(raw_samples)
+    most_probable_output = Counter(testProb_output).most_common(1)[0][0]
     # print("penalty=", penalty, "coup=", coup, "temp=", temp)
     # print(most_probable_output)
     ########### smaller temp, larger coupling
@@ -97,26 +98,26 @@ def run_func(penalty, coup, temp):
     # # print("prob of ground state=", testProb_output[272])
 
     ## converting output to matrix
-    # x_mat = [[0 for _ in range(n)] for _ in range(n)]
-    # for i in range(len(most_probable_output)):
-    #     x_mat[i//n][i%n] = most_probable_output[i]
-    # print(x_mat)
+    x_mat = [[0 for _ in range(n)] for _ in range(n)]
+    for i in range(len(most_probable_output)):
+        x_mat[i//n][i%n] = most_probable_output[i]
+    print(x_mat)
 
     expected_output = (1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
     num_correct = testProb_output.count(expected_output)
     print("penalty=", penalty, "coup=", coup, "temp=", temp, "num_correct=", num_correct)
 
-for i in range(100, 1000, 100):
-    run_func(penalty=i, coup=(2*i/5), temp=0.1)
-for i in range(1000, 10000, 1000):
-    run_func(penalty=i, coup=(2*i/5), temp=0.001)
+# for i in range(100, 1000, 100):
+#     run_func(penalty=i, coup=i*2, temp=0.1)
+# for i in range(1000, 10000, 1000):
+#     run_func(penalty=i, coup=i*2, temp=0.001)
 
 # for i in range(1, 10):
 #     run_func(penalty=1000, coup=2000, temp=i*0.0001)
 # for i in range(1, 10):
 #     run_func(penalty=1000, coup=2000, temp=i*0.001)
 
-# run_func(penalty=1000, coup=2000, temp=0.001)
+run_func(penalty=1000, coup=2000, temp=0.001)
 
 # for i in range (1000, 10000, 1000):
 #     for j in range (i, 10000, 1000):
